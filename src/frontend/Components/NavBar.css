@@ -1,0 +1,27 @@
+.navbar {
+  position: absolute; /* Keep it fixed at top-left */
+  top: 5px;
+  left: 5px;
+  right: 5px;
+  padding: 15px 30px;
+  background-color: orange; /* Orange container */
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2); /* Card shadow */
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  z-index: 1000; /* Ensures it's above other elements */
+}
+
+.navbar:hover {
+  transform: translateY(-4px); /* Slight lift on hover */
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3); /* More elevation */
+  cursor: pointer;
+}
+
+#textinh2 {
+  margin: 0;
+  font-size: 3rem;
+  color: white; /* Text color for contrast */
+}
