@@ -28,3 +28,6 @@ package.json
 README.md
 vite.config.js
 eslint.config.js
+src/backend/db/__pycache__
+src/backend/routes/__pycache__
+src/backend/__pycache__
