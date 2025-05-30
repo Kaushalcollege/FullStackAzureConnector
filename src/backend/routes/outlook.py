@@ -10,6 +10,9 @@ from db.outlook_db import (
 import requests
 import json
 import datetime
+from fastapi import Request
+from fastapi.responses import PlainTextResponse
+from routes.subscribe import subscription
 
 outlook_router = APIRouter()
 
@@ -70,10 +73,26 @@ def exchange_token(data: ExchangeRequest):
         access_token = token_data.get("access_token")
         refresh_token = token_data.get("refresh_token")
 
-        update_tokens_and_log(connector_id, access_token, refresh_token)
+        notification_url = "https://59bf-183-82-117-42.ngrok-free.app"
+        subscription_id = subscription(
+            access_token=access_token,
+            client_id=client_id,
+            notification_url=notification_url
+        )
+
+
+        update_tokens_and_log(connector_id, access_token, refresh_token, subscription_id)
 
         return {"message": "Token exchanged successfully"}
     except Exception as e:
-        traceback.print_exc()  # full stack trace in logs
+        traceback.print_exc()  
         print(f"Error in /exchange-token: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
+
+@outlook_router.api_route("/webhook/notifications/{client_id}", methods=["GET", "POST"])
+async def validate_subscription(client_id: str, request: Request):
+    print(f"Received validation for client_id: {client_id}")
+    validation_token = request.query_params.get("validationToken")
+    if validation_token:
+        return PlainTextResponse(content=validation_token, status_code=200)
+    return PlainTextResponse(status_code=400)

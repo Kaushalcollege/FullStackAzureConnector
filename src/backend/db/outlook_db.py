@@ -44,20 +44,20 @@ def insert_credentials_to_db(Input):
         )
     )
 
-    cursor.execute(
-        """
-        INSERT INTO connector_log (app_id, connector_id, document_name, status, created_date, updated_date)
-        VALUES (%s, %s, %s, %s, %s, %s)
-        """,
-        (
-            Input.client_id,
-            connector_id,
-            None,
-            "CREATED",
-            now,
-            now
-        )
-    )
+    # cursor.execute(
+    #     """
+    #     INSERT INTO connector_log (app_id, connector_id, document_name, status, created_date, updated_date)
+    #     VALUES (%s, %s, %s, %s, %s, %s)
+    #     """,
+    #     (
+    #         Input.client_id,
+    #         connector_id,
+    #         None,
+    #         "CREATED",
+    #         now,
+    #         now
+    #     )
+    # )
 
     conn.commit()
     cursor.close()
@@ -89,7 +89,7 @@ def get_connector_by_email(email_id):
     return connector_id, config_json
 
 
-def update_tokens_and_log(connector_id, access_token, refresh_token):
+def update_tokens_and_log(connector_id, access_token, refresh_token, subscription_id):
     conn = get_connection()
     cursor = conn.cursor()
     now = datetime.datetime.utcnow()
@@ -103,25 +103,26 @@ def update_tokens_and_log(connector_id, access_token, refresh_token):
         (
             json.dumps({
                 "access_token": access_token,
-                "refresh_token": refresh_token
+                "refresh_token": refresh_token,
+                "subscription_id": subscription_id
             }),
             now,
             connector_id
         )
     )
 
-    cursor.execute(
-        """
-        UPDATE connector_log
-        SET status = %s, updated_date = %s
-        WHERE connector_id = %s
-        """,
-        (
-            "CONNECTED",
-            now,
-            connector_id
-        )
-    )
+    # cursor.execute(
+    #     """
+    #     UPDATE connector_log
+    #     SET status = %s, updated_date = %s
+    #     WHERE connector_id = %s
+    #     """,
+    #     (
+    #         "CONNECTED",
+    #         now,
+    #         connector_id
+    #     )
+    # )
 
     conn.commit()
     cursor.close()
