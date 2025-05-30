@@ -5,7 +5,9 @@ from fastapi.responses import JSONResponse
 from db.outlook_db import (
     insert_credentials_to_db,
     get_connector_by_email,
-    update_tokens_and_log
+    update_tokens_and_log,
+    insert_log_entry,
+    get_connector_by_email_by_client_id
 )
 import requests
 import json
@@ -73,7 +75,7 @@ def exchange_token(data: ExchangeRequest):
         access_token = token_data.get("access_token")
         refresh_token = token_data.get("refresh_token")
 
-        notification_url = "https://59bf-183-82-117-42.ngrok-free.app"
+        notification_url = "https://03f0-183-82-117-42.ngrok-free.app"
         subscription_id = subscription(
             access_token=access_token,
             client_id=client_id,
@@ -90,9 +92,71 @@ def exchange_token(data: ExchangeRequest):
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @outlook_router.api_route("/webhook/notifications/{client_id}", methods=["GET", "POST"])
-async def validate_subscription(client_id: str, request: Request):
-    print(f"Received validation for client_id: {client_id}")
+async def handle_notification(client_id: str, request: Request):
     validation_token = request.query_params.get("validationToken")
     if validation_token:
+        print(f"Received validation for client_id: {client_id}")
         return PlainTextResponse(content=validation_token, status_code=200)
-    return PlainTextResponse(status_code=400)
+
+    try:
+        body = await request.json()
+        print("Received notification: ", body)
+
+        for item in body.get("value", []):
+            message_id = item.get("resourceData", {}).get("id")
+            # resource = item.get("resource") 
+            # user_id = item.get("id")  
+            
+            if message_id:
+                print(f"Looking up connector config for client_id: {client_id}")
+                connector_id, config , access_token = get_connector_by_email_by_client_id(client_id)  
+                print(f"Found connector_id: {connector_id}")
+                # access_token = config.get("access_token")
+                headers = {
+                    "Authorization": f"Bearer {access_token}",
+                    "Content-Type": "application/json"
+                }
+
+                message_url = f"https://graph.microsoft.com/v1.0/me/messages/{message_id}"
+                response = requests.get(message_url, headers=headers)
+                if response.status_code != 200:
+                    print(f"Failed to fetch message: {response.text}")
+                    continue
+
+                mail = response.json()
+                subject = mail.get("subject", "No Subject")
+                sender = mail.get("from", {}).get("emailAddress", {}).get("address")
+                attachments_info = []
+
+                attachments_url = f"https://graph.microsoft.com/v1.0/me/messages/{message_id}/attachments"
+                attach_resp = requests.get(attachments_url, headers=headers)
+                if attach_resp.status_code == 200 or attach_resp.status_code == 202:
+                    attachments = attach_resp.json().get("value", [])
+                    for att in attachments:
+                        attachments_info.append({
+                            "name": att.get("name"),
+                            "size": att.get("size"),
+                            "contentType": att.get("contentType")
+                        })
+                else:
+                    print(f"No attachments or failed: {attach_resp.text}")
+
+                for att in attachments_info:
+                    insert_log_entry(
+                        connector_id=connector_id,
+                        client_id=client_id,
+                        document_name=att.get("name"),
+                        additional_info=json.dumps({
+                            "subject": subject,
+                            "sender": sender,
+                            "attachment_metadata": att
+                        }),
+                        status="fetched"
+                    )
+
+        return JSONResponse(content={"status": "Processed"}, status_code=202)
+
+    except Exception as e:
+        print(f"Webhook error: {e}")
+        traceback.print_exc()
+        return JSONResponse(content={"error": "Internal Server Error"}, status_code=500)

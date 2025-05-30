@@ -1,3 +1,4 @@
+import traceback
 from database import get_connection
 import json
 import datetime
@@ -127,3 +128,63 @@ def update_tokens_and_log(connector_id, access_token, refresh_token, subscriptio
     conn.commit()
     cursor.close()
     conn.close()
+
+
+def insert_log_entry(connector_id, client_id, document_name, additional_info, status):
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+
+        query = """
+            INSERT INTO connector_log (
+                connector_id, client_id, document_name, additional_info, status, created_date, updated_date
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s)
+        """
+        now = datetime.datetime.utcnow()
+        cur.execute(query, (
+            connector_id,
+            client_id,
+            document_name,
+            additional_info,
+            status,
+            now,
+            now
+        ))
+        conn.commit()
+        print(f"Inserted log for {document_name}")
+    except Exception as e:
+        print(f"Error inserting log: {e}")
+        traceback.print_exc()
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
+
+
+def get_connector_by_email_by_client_id(client_id):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute(
+        "SELECT connector_id, config, token FROM connector WHERE config ->> 'client_id' = %s",
+        (client_id,)
+    )
+    row = cursor.fetchone()
+
+    if not row:
+        raise Exception("Connector not found for client_id")
+
+    cursor.close()
+    conn.close()
+
+    connector_id = row["connector_id"]
+    config_json = row["config"]
+    token_json = row["token"]
+
+    access_token = token_json.get("access_token")
+
+    print(f"connector_id: {connector_id}")
+    print(f"access_token: {access_token}")
+
+    return connector_id, config_json, access_token
