@@ -3,12 +3,13 @@ import FormField from "./FormField";
 import "./RightSlideModal.css";
 
 const RightSlideModal = ({ onClose }) => {
+  const [appId, setAppId] = useState("");
   const [clientId, setClientId] = useState("");
   const [tenantId, setTenantId] = useState("");
   const [clientSecret, setClientSecret] = useState("");
   const [emailId, setEmailId] = useState("");
 
-  const isFormValid = clientId && tenantId && clientSecret && emailId;
+  const isFormValid = clientId && tenantId && clientSecret && emailId && appId;
 
   const handleSubmit = async () => {
     try {
@@ -22,6 +23,7 @@ const RightSlideModal = ({ onClose }) => {
           client_id: clientId,
           client_secret: clientSecret,
           email_id: emailId,
+          app_id: appId,
         }),
       });
 
@@ -34,7 +36,7 @@ const RightSlideModal = ({ onClose }) => {
           "Mail.Read",
           "User.Read",
         ];
-        const redirectUri = `http://localhost:5173/redirect/${clientId}`;
+        const redirectUri = `http://localhost:5173/redirect/${appId}`;
         const authUrl = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/authorize?client_id=${clientId}&response_type=code&redirect_uri=${encodeURIComponent(
           redirectUri
         )}&response_mode=query&scope=${scopes.join(
@@ -53,6 +55,12 @@ const RightSlideModal = ({ onClose }) => {
   };
 
   const fields = [
+    {
+      label: "App ID *",
+      placeholder: "App ID",
+      value: appId,
+      onChange: setAppId,
+    },
     {
       label: "Tenant ID *",
       placeholder: "Tenant ID",
@@ -285,7 +293,7 @@ const RightSlideModal = ({ onClose }) => {
               configurations in:
               <br />
               <span style={{ fontStyle: "italic", color: "#667085" }}>
-                “https://localhost:5173/redirect/(Client ID)”
+                “https://localhost:5173/redirect/{appId}”
               </span>
             </p>
           </div>

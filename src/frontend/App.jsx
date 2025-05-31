@@ -50,7 +50,7 @@ const App = () => {
             </div>
           }
         />
-        <Route path="/redirect/:clientId" element={<AuthRedirect />} />
+        <Route path="/redirect/:appId" element={<AuthRedirect />} />
         <Route
           path="/success"
           element={<SuccessPage openModal={openModal} />}

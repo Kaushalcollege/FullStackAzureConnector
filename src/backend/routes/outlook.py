@@ -28,10 +28,12 @@ class Credentials(BaseModel):
     client_id: str
     client_secret: str
     email_id: str
+    app_id: str
 
 class ExchangeRequest(BaseModel):
     auth_code: str
     email_id: str
+    app_id: str
 
 
 @outlook_router.post("/credentials")
@@ -62,7 +64,7 @@ def exchange_token(data: ExchangeRequest):
         client_secret = config["client_secret"]
 
         token_url = f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token"
-        redirect_uri = f"http://localhost:5173/redirect/{client_id}"
+        redirect_uri = f"http://localhost:5173/redirect/{data.app_id}"
 
         payload = {
             "client_id": client_id,
@@ -122,7 +124,7 @@ async def handle_notification(client_id: str, request: Request):
                 continue
 
             print(f"Looking up connector config for client_id: {client_id}")
-            connector_id, config, access_token = get_connector_by_email_by_client_id(client_id)
+            connector_id, config, access_token, app_id = get_connector_by_email_by_client_id(client_id)
             print(f"Found connector_id: {connector_id}")
 
             headers = {
@@ -160,7 +162,7 @@ async def handle_notification(client_id: str, request: Request):
             for att in attachments_info:
                 insert_log_entry(
                     connector_id=connector_id,
-                    client_id=client_id,
+                    app_id=app_id,
                     document_name=att.get("name"),
                     additional_info=json.dumps({
                         "subject": subject,

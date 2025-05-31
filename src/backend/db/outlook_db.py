@@ -37,7 +37,7 @@ def insert_credentials_to_db(Input):
         (
             connector_id,
             "outlook",
-            Input.client_id,
+            Input.app_id,
             json.dumps(config),
             now,
             now,
@@ -130,20 +130,20 @@ def update_tokens_and_log(connector_id, access_token, refresh_token, subscriptio
     conn.close()
 
 
-def insert_log_entry(connector_id, client_id, document_name, additional_info, status, message_id=None):
+def insert_log_entry(connector_id, app_id, document_name, additional_info, status, message_id=None):
     try:
         conn = get_connection()
         cur = conn.cursor()
 
         query = """
             INSERT INTO connector_log (
-                connector_id, client_id, document_name, additional_info, status, created_date, updated_date, message_id
+                connector_id, app_id, document_name, additional_info, status, created_date, updated_date, message_id
             ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
         """
         now = datetime.datetime.utcnow()
         cur.execute(query, (
             connector_id,
-            client_id,
+            app_id,
             document_name,
             additional_info,
             status,
@@ -168,9 +168,10 @@ def get_connector_by_email_by_client_id(client_id):
     cursor = conn.cursor()
 
     cursor.execute(
-        "SELECT connector_id, config, token FROM connector WHERE config ->> 'client_id' = %s",
-        (client_id,)
+    "SELECT connector_id, config, token, app_id FROM connector WHERE config ->> 'client_id' = %s",
+    (client_id,)
     )
+
     row = cursor.fetchone()
 
     if not row:
@@ -182,10 +183,11 @@ def get_connector_by_email_by_client_id(client_id):
     connector_id = row["connector_id"]
     config_json = row["config"]
     token_json = row["token"]
+    app_id = row["app_id"]
 
     access_token = token_json.get("access_token")
 
-    return connector_id, config_json, access_token
+    return connector_id, config_json, access_token, app_id
 
 def message_already_processed(message_id: str) -> bool:
     try:
