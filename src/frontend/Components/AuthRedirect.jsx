@@ -1,51 +1,57 @@
 import React, { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation, useParams } from "react-router-dom";
 
 const AuthRedirect = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { clientId } = useParams();
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    console.log("Window location search:", window.location.search);
-    const code = params.get("code");
-    const email_id = params.get("state"); // 'state' carries email
-
     console.log("AuthRedirect mounted");
-    console.log("Extracted code:", code);
-    console.log("Extracted email_id (state):", email_id);
-    debugger; // Pause here to inspect code and email_id
+    console.log("URL:", window.location.href);
+    console.log("Path param clientId:", clientId);
+    console.log("Raw query string:", location.search);
 
-    if (code && email_id) {
+    const params = new URLSearchParams(location.search);
+    const code = params.get("code");
+    const email_id = params.get("state");
+
+    console.log("Parsed query params:");
+    console.log("code:", code);
+    console.log("email_id (state):", email_id);
+
+    if (code && email_id && clientId) {
+      console.log("All required params present. Starting token exchange...");
+
       fetch("http://localhost:8000/exchange-token", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           auth_code: code,
           email_id: email_id,
+          client_id: clientId,
         }),
       })
         .then((res) => {
-          console.log("Response status:", res.status);
-          if (!res.ok) {
-            console.error("Response not OK");
-            throw new Error("Token exchange failed");
-          }
+          console.log("Exchange token response status:", res.status);
+          if (!res.ok) throw new Error("Token exchange failed");
           return res.json();
         })
         .then((data) => {
-          console.log("Token exchange success:", data);
-          debugger; // Pause here to inspect the response data
+          console.log("Token exchange successful, response data:", data);
           navigate("/success");
         })
         .catch((err) => {
-          console.error("Error during token exchange:", err);
-          debugger; // Pause here on error
+          console.error("Token exchange error:", err);
           navigate("/error");
         });
     } else {
-      console.warn("Missing code or email_id - cannot exchange token");
+      console.warn("Missing required parameters:");
+      if (!code) console.warn("- code is missing");
+      if (!email_id) console.warn("- email_id (state) is missing");
+      if (!clientId) console.warn("- clientId (path param) is missing");
     }
-  }, [navigate]);
+  }, [location, navigate, clientId]);
 
   return <div>Exchanging token with Microsoft...</div>;
 };

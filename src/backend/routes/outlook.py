@@ -62,7 +62,7 @@ def exchange_token(data: ExchangeRequest):
         client_secret = config["client_secret"]
 
         token_url = f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token"
-        redirect_uri = "http://localhost:5173/auth/callback"
+        redirect_uri = f"http://localhost:5173/redirect/{client_id}"
 
         payload = {
             "client_id": client_id,

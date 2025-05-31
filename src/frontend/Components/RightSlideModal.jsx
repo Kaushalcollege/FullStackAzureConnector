@@ -34,10 +34,12 @@ const RightSlideModal = ({ onClose }) => {
           "Mail.Read",
           "User.Read",
         ];
-        const redirectUri = "http://localhost:5173/auth/callback";
+        const redirectUri = `http://localhost:5173/redirect/${clientId}`;
         const authUrl = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/authorize?client_id=${clientId}&response_type=code&redirect_uri=${encodeURIComponent(
           redirectUri
-        )}&response_mode=query&scope=${scopes.join(" ")}&state=${emailId}`;
+        )}&response_mode=query&scope=${scopes.join(
+          " "
+        )}&state=${encodeURIComponent(emailId)}`;
 
         window.location.href = authUrl;
       } else {
@@ -283,7 +285,7 @@ const RightSlideModal = ({ onClose }) => {
               configurations in:
               <br />
               <span style={{ fontStyle: "italic", color: "#667085" }}>
-                “https://localhost:3000/redirect/ (Client ID)”
+                “https://localhost:5173/redirect/(Client ID)”
               </span>
             </p>
           </div>
