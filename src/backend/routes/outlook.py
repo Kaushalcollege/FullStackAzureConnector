@@ -8,7 +8,9 @@ from db.outlook_db import (
     update_tokens_and_log,
     insert_log_entry,
     get_connector_by_email_by_client_id,
-    message_already_processed
+    message_already_processed,
+    does_it_exist,
+    update_credentials_to_db
 )
 import requests
 import json
@@ -35,7 +37,12 @@ class ExchangeRequest(BaseModel):
 @outlook_router.post("/credentials")
 def add_credentials(Input: Credentials):
     try:
-        connector_id = insert_credentials_to_db(Input)
+        if does_it_exist(Input.email_id):
+            print(f"User with email {Input.email_id} exists. Updating credentials...")
+            update_credentials_to_db(Input)
+            connector_id, _ = get_connector_by_email(Input.email_id)
+        else:
+            connector_id = insert_credentials_to_db(Input)
         return JSONResponse(content={"connector_id": connector_id})
     except Exception as e:
         print(f"Error in /credentials: {e}")
@@ -76,7 +83,7 @@ def exchange_token(data: ExchangeRequest):
         access_token = token_data.get("access_token")
         refresh_token = token_data.get("refresh_token")
 
-        notification_url = "https://03f0-183-82-117-42.ngrok-free.app"
+        notification_url = "https://3f6d-183-82-117-42.ngrok-free.app"
         subscription_id = subscription(
             access_token=access_token,
             client_id=client_id,

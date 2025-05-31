@@ -203,3 +203,44 @@ def message_already_processed(message_id: str) -> bool:
             cur.close()
         if conn:
             conn.close()
+
+
+def does_it_exist(email_id: str) -> bool:
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT 1 FROM connector WHERE config ->> 'email_id' = %s",
+        (email_id,)
+    )
+    exists = cursor.fetchone() is not None
+    cursor.close()
+    conn.close()
+    return exists
+def update_credentials_to_db(Input):
+    conn = get_connection()
+    cursor = conn.cursor()
+    now = datetime.datetime.utcnow()
+
+    updated_config = {
+        "tenant_id": Input.tenant_id,
+        "client_id": Input.client_id,
+        "client_secret": Input.client_secret,
+        "email_id": Input.email_id
+    }
+
+    cursor.execute(
+        """
+        UPDATE connector
+        SET config = %s::jsonb,
+            updated_date = %s
+        WHERE config ->> 'email_id' = %s
+        """,
+        (
+            json.dumps(updated_config),
+            now,
+            Input.email_id
+        )
+    )
+    conn.commit()
+    cursor.close()
+    conn.close()
