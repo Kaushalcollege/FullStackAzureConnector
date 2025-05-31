@@ -101,6 +101,7 @@ def exchange_token(data: ExchangeRequest):
 
 @outlook_router.api_route("/webhook/notifications/{client_id}", methods=["GET", "POST"])
 async def handle_notification(client_id: str, request: Request):
+    # Microsoft validation phase
     validation_token = request.query_params.get("validationToken")
     if validation_token:
         print(f"Received validation for client_id: {client_id}")
@@ -113,10 +114,10 @@ async def handle_notification(client_id: str, request: Request):
         for item in body.get("value", []):
             message_id = item.get("resourceData", {}).get("id")
             if not message_id:
+                print("No message ID found in notification.")
                 continue
 
-            # Check if message was already processed
-            if message_already_processed(message_id):  # You must define this function
+            if message_already_processed(message_id):
                 print(f"Skipping duplicate message_id: {message_id}")
                 continue
 
@@ -129,14 +130,14 @@ async def handle_notification(client_id: str, request: Request):
                 "Content-Type": "application/json"
             }
 
-            # Fetch message
+            # Fetch the message
             message_url = f"https://graph.microsoft.com/v1.0/me/messages/{message_id}"
-            response = requests.get(message_url, headers=headers)
-            if response.status_code != 200:
-                print(f"Failed to fetch message: {response.text}")
+            msg_resp = requests.get(message_url, headers=headers)
+            if msg_resp.status_code != 200:
+                print(f"Failed to fetch message: {msg_resp.text}")
                 continue
 
-            mail = response.json()
+            mail = msg_resp.json()
             subject = mail.get("subject", "No Subject")
             sender = mail.get("from", {}).get("emailAddress", {}).get("address")
             attachments_info = []
@@ -153,9 +154,9 @@ async def handle_notification(client_id: str, request: Request):
                         "contentType": att.get("contentType")
                     })
             else:
-                print(f"No attachments or failed: {attach_resp.text}")
+                print(f"No attachments or failed to fetch attachments: {attach_resp.text}")
 
-            # Insert log entries
+            # Insert log entries for each attachment
             for att in attachments_info:
                 insert_log_entry(
                     connector_id=connector_id,
@@ -167,10 +168,10 @@ async def handle_notification(client_id: str, request: Request):
                         "attachment_metadata": att
                     }),
                     status="fetched",
-                    message_id=message_id  # New field
+                    message_id=message_id
                 )
 
-            # Mark message as read to avoid re-triggering
+            # Mark message as read
             mark_read_url = f"https://graph.microsoft.com/v1.0/me/messages/{message_id}"
             mark_resp = requests.patch(mark_read_url, headers=headers, json={"isRead": True})
             if mark_resp.status_code != 200:
