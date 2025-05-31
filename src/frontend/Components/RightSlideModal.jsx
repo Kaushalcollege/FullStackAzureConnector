@@ -278,24 +278,16 @@ const RightSlideModal = ({ onClose }) => {
               />
             ))}
 
-            <p
-              style={{
-                fontFamily: "Inter",
-                fontWeight: 400,
-                fontSize: "12px",
-                lineHeight: "14px",
-                letterSpacing: "0%",
-                margin: 0,
-                padding: 0,
-              }}
-            >
-              Enter your redirect URI as local host in the Platform
-              configurations in:
-              <br />
-              <span style={{ fontStyle: "italic", color: "#667085" }}>
-                “https://localhost:5173/redirect/{appId}”
-              </span>
-            </p>
+            <div className="modal-text-group">
+              <p className="modal-instruction">
+                Please copy the below URL and add as "Redirect URL" in your
+                Azure app:
+              </p>
+
+              <p className="modal-url">
+                https://localhost:3000/redirect/(App ID)
+              </p>
+            </div>
           </div>
 
           <div className="modal-footer">

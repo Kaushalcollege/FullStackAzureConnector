@@ -146,3 +146,32 @@
   background-color: #cccccc;
   cursor: not-allowed;
 }
+
+/* RightSlideModal.css */
+
+.modal-instruction {
+  font-family: Inter;
+  font-weight: 500;
+  font-size: 16px;
+  line-height: 24px;
+  letter-spacing: 0%;
+  color: #414651;
+  margin: 0;
+}
+
+.modal-url {
+  font-family: Inter;
+  font-weight: 400;
+  font-style: italic;
+  font-size: 16px;
+  line-height: 20px;
+  letter-spacing: 0%;
+  color: #667085;
+  margin: 0;
+}
+
+.modal-text-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
