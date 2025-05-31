@@ -7,7 +7,8 @@ from db.outlook_db import (
     get_connector_by_email,
     update_tokens_and_log,
     insert_log_entry,
-    get_connector_by_email_by_client_id
+    get_connector_by_email_by_client_id,
+    message_already_processed
 )
 import requests
 import json
@@ -18,7 +19,7 @@ from routes.subscribe import subscription
 
 outlook_router = APIRouter()
 
-SCOPES = ["Mail.Read", "User.Read", "profile openid email"]
+SCOPES = ["Mail.Read", "User.Read", "profile openid email", "Mail.ReadWrite"]
 
 class Credentials(BaseModel):
     tenant_id: str
@@ -104,55 +105,69 @@ async def handle_notification(client_id: str, request: Request):
 
         for item in body.get("value", []):
             message_id = item.get("resourceData", {}).get("id")
-            # resource = item.get("resource") 
-            # user_id = item.get("id")  
-            
-            if message_id:
-                print(f"Looking up connector config for client_id: {client_id}")
-                connector_id, config , access_token = get_connector_by_email_by_client_id(client_id)  
-                print(f"Found connector_id: {connector_id}")
-                # access_token = config.get("access_token")
-                headers = {
-                    "Authorization": f"Bearer {access_token}",
-                    "Content-Type": "application/json"
-                }
+            if not message_id:
+                continue
 
-                message_url = f"https://graph.microsoft.com/v1.0/me/messages/{message_id}"
-                response = requests.get(message_url, headers=headers)
-                if response.status_code != 200:
-                    print(f"Failed to fetch message: {response.text}")
-                    continue
+            # Check if message was already processed
+            if message_already_processed(message_id):  # You must define this function
+                print(f"Skipping duplicate message_id: {message_id}")
+                continue
 
-                mail = response.json()
-                subject = mail.get("subject", "No Subject")
-                sender = mail.get("from", {}).get("emailAddress", {}).get("address")
-                attachments_info = []
+            print(f"Looking up connector config for client_id: {client_id}")
+            connector_id, config, access_token = get_connector_by_email_by_client_id(client_id)
+            print(f"Found connector_id: {connector_id}")
 
-                attachments_url = f"https://graph.microsoft.com/v1.0/me/messages/{message_id}/attachments"
-                attach_resp = requests.get(attachments_url, headers=headers)
-                if attach_resp.status_code == 200 or attach_resp.status_code == 202:
-                    attachments = attach_resp.json().get("value", [])
-                    for att in attachments:
-                        attachments_info.append({
-                            "name": att.get("name"),
-                            "size": att.get("size"),
-                            "contentType": att.get("contentType")
-                        })
-                else:
-                    print(f"No attachments or failed: {attach_resp.text}")
+            headers = {
+                "Authorization": f"Bearer {access_token}",
+                "Content-Type": "application/json"
+            }
 
-                for att in attachments_info:
-                    insert_log_entry(
-                        connector_id=connector_id,
-                        client_id=client_id,
-                        document_name=att.get("name"),
-                        additional_info=json.dumps({
-                            "subject": subject,
-                            "sender": sender,
-                            "attachment_metadata": att
-                        }),
-                        status="fetched"
-                    )
+            # Fetch message
+            message_url = f"https://graph.microsoft.com/v1.0/me/messages/{message_id}"
+            response = requests.get(message_url, headers=headers)
+            if response.status_code != 200:
+                print(f"Failed to fetch message: {response.text}")
+                continue
+
+            mail = response.json()
+            subject = mail.get("subject", "No Subject")
+            sender = mail.get("from", {}).get("emailAddress", {}).get("address")
+            attachments_info = []
+
+            # Fetch attachments
+            attachments_url = f"https://graph.microsoft.com/v1.0/me/messages/{message_id}/attachments"
+            attach_resp = requests.get(attachments_url, headers=headers)
+            if attach_resp.status_code in (200, 202):
+                attachments = attach_resp.json().get("value", [])
+                for att in attachments:
+                    attachments_info.append({
+                        "name": att.get("name"),
+                        "size": att.get("size"),
+                        "contentType": att.get("contentType")
+                    })
+            else:
+                print(f"No attachments or failed: {attach_resp.text}")
+
+            # Insert log entries
+            for att in attachments_info:
+                insert_log_entry(
+                    connector_id=connector_id,
+                    client_id=client_id,
+                    document_name=att.get("name"),
+                    additional_info=json.dumps({
+                        "subject": subject,
+                        "sender": sender,
+                        "attachment_metadata": att
+                    }),
+                    status="fetched",
+                    message_id=message_id  # New field
+                )
+
+            # Mark message as read to avoid re-triggering
+            mark_read_url = f"https://graph.microsoft.com/v1.0/me/messages/{message_id}"
+            mark_resp = requests.patch(mark_read_url, headers=headers, json={"isRead": True})
+            if mark_resp.status_code != 200:
+                print(f"Failed to mark email as read: {mark_resp.text}")
 
         return JSONResponse(content={"status": "Processed"}, status_code=202)
 

@@ -130,15 +130,15 @@ def update_tokens_and_log(connector_id, access_token, refresh_token, subscriptio
     conn.close()
 
 
-def insert_log_entry(connector_id, client_id, document_name, additional_info, status):
+def insert_log_entry(connector_id, client_id, document_name, additional_info, status, message_id=None):
     try:
         conn = get_connection()
         cur = conn.cursor()
 
         query = """
             INSERT INTO connector_log (
-                connector_id, client_id, document_name, additional_info, status, created_date, updated_date
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s)
+                connector_id, client_id, document_name, additional_info, status, created_date, updated_date, message_id
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
         """
         now = datetime.datetime.utcnow()
         cur.execute(query, (
@@ -148,10 +148,11 @@ def insert_log_entry(connector_id, client_id, document_name, additional_info, st
             additional_info,
             status,
             now,
-            now
+            now,
+            message_id
         ))
         conn.commit()
-        print(f"Inserted log for {document_name}")
+        print(f"Inserted log for {document_name} (message_id={message_id})")
     except Exception as e:
         print(f"Error inserting log: {e}")
         traceback.print_exc()
@@ -184,7 +185,21 @@ def get_connector_by_email_by_client_id(client_id):
 
     access_token = token_json.get("access_token")
 
-    print(f"connector_id: {connector_id}")
-    print(f"access_token: {access_token}")
-
     return connector_id, config_json, access_token
+
+def message_already_processed(message_id: str) -> bool:
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+        cur.execute("SELECT 1 FROM connector_log WHERE message_id = %s LIMIT 1", (message_id,))
+        exists = cur.fetchone() is not None
+        return exists
+    except Exception as e:
+        print(f"Error checking message_id {message_id}: {e}")
+        traceback.print_exc()
+        return False
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
